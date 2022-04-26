@@ -520,7 +520,7 @@ class Plate(Spec):
 
         # This should create a pyramid of levels, but causes seg faults!
         # for level in range(5):
-        for level in [target_level]:
+        for level in target_level:
 
             tile_shape = well_spec.img_pyramid_shapes[level]
             lazy_plate = self.get_stitched_grid(level, tile_shape)
