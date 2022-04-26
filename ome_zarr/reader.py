@@ -501,17 +501,17 @@ class Plate(Spec):
 
         # FIXME - if only returning a single stiched plate (not a pyramid)
         # need to decide optimal size. E.g. longest side < 1500
-        TARGET_SIZE = 1500
+        TARGET_SIZE = 100000
         plate_width = self.column_count * size_x
         plate_height = self.row_count * size_y
         longest_side = max(plate_width, plate_height)
-        target_level = 0
+        target_level = []
         for level, shape in enumerate(well_spec.img_pyramid_shapes):
             plate_width = self.column_count * shape[-1]
             plate_height = self.row_count * shape[-2]
             longest_side = max(plate_width, plate_height)
-            target_level = level
-            if longest_side <= TARGET_SIZE:
+            target_level.append(level)
+            if longest_side >= TARGET_SIZE:
                 break
 
         LOGGER.debug(f"target_level: {target_level}")
