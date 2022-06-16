@@ -540,11 +540,10 @@ class Plate(Spec):
 
     def get_numpy_type(self, image_node: Node) -> np.dtype:
         return image_node.data[0].dtype
-
-    def get_tile_path(self, level: int, row: int, col: int) -> str:
+    def get_tile_path(self, level: int, row: int, col: int, field: int) -> str:
         return (
             f"{self.row_names[row]}/"
-            f"{self.col_names[col]}/{self.first_field}/{level}"
+            f"{self.col_names[col]}/{field}/{level}"
         )
 
     def get_stitched_grid(self, level: int, tile_shape: tuple) -> da.core.Array:
@@ -553,15 +552,26 @@ class Plate(Spec):
         def get_tile(tile_name: str) -> np.ndarray:
             """tile_name is 'level,z,c,t,row,col'"""
             row, col = (int(n) for n in tile_name.split(","))
-            path = self.get_tile_path(level, row, col)
-            LOGGER.debug(f"LOADING tile... {path} with shape: {tile_shape}")
-
+            #field = [0,1,2,3]
+            data_col = []
+            data_row = []
             try:
-                data = self.zarr.load(path)
+
+                for r in range(1):
+                    for c in range(1):
+                        path = self.get_tile_path(level, row, col, r+c*2)
+                        data_col.append(self.zarr.load(path))
+                        data_block = da.block(data_col)
+                    data_row.append(data_block)
+                data = da.stack(data_row, axis= 0)
             except ValueError as e:
                 LOGGER.error(f"Failed to load {path}")
                 LOGGER.debug(f"{e}")
-                data = np.zeros(tile_shape, dtype=self.numpy_type)
+                #data = np.zeros(tile_shape, dtype=self.numpy_type)
+
+            LOGGER.debug(f"LOADING tile... {path} with shape: {tile_shape}")
+
+
             return data
 
         lazy_reader = delayed(get_tile)
@@ -572,9 +582,13 @@ class Plate(Spec):
             lazy_row: List[da.Array] = []
             for col in range(self.column_count):
                 tile_name = f"{row},{col}"
+
                 lazy_tile = da.from_delayed(
-                    lazy_reader(tile_name), shape=tile_shape, dtype=self.numpy_type
+                    lazy_reader(tile_name),
+                    shape=tile_shape, dtype=self.numpy_type
                 )
+
+                #lazy_tile = da.concatenate(lazy_tile, axis=0)
                 lazy_row.append(lazy_tile)
             lazy_rows.append(da.concatenate(lazy_row, axis=len(self.axes) - 1))
         return da.concatenate(lazy_rows, axis=len(self.axes) - 2)
